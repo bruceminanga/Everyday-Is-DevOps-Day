@@ -1,4 +1,4 @@
-# Conquer DevOps: Architecting Immortality ♾️🛡️
+# Conquer DevOps: ♾️🛡️
 
 > *"Here is everything from my LinkedIn put into practice."*
 
