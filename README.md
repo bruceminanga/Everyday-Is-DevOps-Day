@@ -24,10 +24,6 @@ Features:
 
 If you want to deploy and use this setup yourself, follow these instructions.
 
-### Prerequisites
-* An AWS Account
-* Terraform installed locally
-* Docker installed
 
 ### Deployment Steps
 1. Clone the repository:
