@@ -2,12 +2,12 @@
 
 > *"Here is everything from my LinkedIn put into practice."*
 
-Read the full mission and philosophy behind this project in my LinkedIn article: **[Conquer DevOps: My DevSecOps Mission](https://www.linkedin.com/pulse/architecting-immortality-why-devsecops-my-mission-bruce-minanga-zoxdf/)**
+Review the full theory in my LinkedIn article: **[Conquer DevOps: My DevSecOps Mission](https://www.linkedin.com/pulse/architecting-immortality-why-devsecops-my-mission-bruce-minanga-zoxdf/)**
 
 ## 📖 About This Project
-This repository is the practical implementation of the concepts discussed in my article. It demonstrates a complete, automated, and secure DevSecOps workflow. 
+Real world DevOps Project put into practice. This repository is the practical implementation of the concepts discussed in my article. It demonstrates a complete, automated, and secure DevSecOps workflow. 
 
-Specifically, this project features:
+Features:
 * Automated infrastructure provisioning using Terraform
 * A CI/CD pipeline that builds, tests, and deploys a sample application
 * Integrated security scanning (SAST/DAST) to ensure vulnerabilities are caught early
