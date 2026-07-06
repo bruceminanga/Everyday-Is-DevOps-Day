@@ -1,11 +1,11 @@
 # Conquer DevOps: ♾️🛡️
 
-> *"Here is everything from my LinkedIn put into practice."*
+> *"Here is everything from LinkedIn put into practice."*
 
-Review the full theory in my LinkedIn article: **[Conquer DevOps: The 90% Rule for Continuous Improvement](https://www.linkedin.com/pulse/architecting-immortality-why-devsecops-my-mission-bruce-minanga-zoxdf/)**
+Review the full theory in LinkedIn article: **[Conquer DevOps: The 90% Rule for Continuous Improvement](https://www.linkedin.com/pulse/architecting-immortality-why-devsecops-my-mission-bruce-minanga-zoxdf/)**
 
 ## 📖 About This Project
-Real world DevOps Project put into practice. This repository is the practical implementation of the concepts discussed in my article. It demonstrates a complete, automated, and secure DevSecOps workflow. 
+Real world DevOps Project put into practice. This repository is the practical implementation of the concepts discussed in the article. It demonstrates a complete, automated, and secure DevSecOps workflow. 
 
 Features:
 * Automated infrastructure provisioning using Terraform
