@@ -2,7 +2,7 @@
 
 > *"Here is everything from my LinkedIn put into practice."*
 
-Review the full theory in my LinkedIn article: **[Conquer DevOps: My DevSecOps Mission](https://www.linkedin.com/pulse/architecting-immortality-why-devsecops-my-mission-bruce-minanga-zoxdf/)**
+Review the full theory in my LinkedIn article: **[Conquer DevOps: The 90% Rule for Continuous Improvement](https://www.linkedin.com/pulse/architecting-immortality-why-devsecops-my-mission-bruce-minanga-zoxdf/)**
 
 ## 📖 About This Project
 Real world DevOps Project put into practice. This repository is the practical implementation of the concepts discussed in my article. It demonstrates a complete, automated, and secure DevSecOps workflow. 
