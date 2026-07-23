@@ -17,5 +17,15 @@ db.sqlite3-journal
 # Media files (user-uploaded files shouldn't be tracked)
 media/
 
-# Environment variables
+# Prevent committing sensitive environment files
 .env
+.env.*
+!.env.example
+
+# Ignore container tarball exports
+*.tar
+*.list
+
+# Ignore benchmark result files
+*results.json
+bench_vol/

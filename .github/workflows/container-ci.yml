@@ -1,0 +1,59 @@
+name: Container Reproducibility & Multi-Arch Matrix
+
+on: [push, pull_request]
+
+jobs:
+  reproducibility-test:
+    name: Bit-for-Bit Build Reproducibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build Primary Artifact
+        run: |
+          export EPOCH=$(git log -1 --pretty=%ct)
+          docker buildx build --no-cache -t myapp:test --build-arg SOURCE_DATE_EPOCH=$EPOCH --output type=docker,dest=build1.tar .
+
+      - name: Build Secondary Artifact
+        run: |
+          export EPOCH=$(git log -1 --pretty=%ct)
+          docker buildx build --no-cache -t myapp:test --build-arg SOURCE_DATE_EPOCH=$EPOCH --output type=docker,dest=build2.tar .
+
+      - name: Verify Bit-for-Bit Parity
+        run: |
+          sudo apt-get update && sudo apt-get install -y diffoscope
+          diffoscope build1.tar build2.tar
+
+  image-efficiency-test:
+    name: Layer Bloat & Efficiency Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Image
+        run: docker build -t test-app .
+
+      - name: Gate on Image Bloat (Dive)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            wagoodman/dive:latest test-app \
+            --ci --lowestEfficiency=0.95 --highestWastedBytes=20MB
+
+  cross-platform-matrix:
+    name: CPU Performance Parity (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm # Native GitHub ARM64 Runner
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run CPU Hardware Benchmark
+        run: |
+          docker run --rm alpine sh -c "apk add --no-cache sysbench >/dev/null && sysbench cpu --cpu-max-prime=10000 run"

@@ -1,4 +1,5 @@
 name: my-app-prod
+
 services:
   db:
     image: postgres:16-alpine@sha256:b89a4e92591810eac1fbce6107485d7c6b9449df51c1ccfcfed514a7fdd69955
@@ -30,18 +31,31 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/items')"]      
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   frontend:
     build:
       context: frontend/
       dockerfile: Dockerfile
     ports:
-    - "8080:80"
+      - "8080:80"
     env_file:
-      - frontend/.env.dev
+      - frontend/.env.prod
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
 volumes:
   postgres_data:

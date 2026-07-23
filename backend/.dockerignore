@@ -34,3 +34,6 @@ Dockerfile
 
 # VS Code
 .vscode/
+
+*.tar
+img*.tar
