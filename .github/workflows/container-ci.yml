@@ -13,12 +13,12 @@ jobs:
       - name: Build Primary Artifact
         run: |
           export EPOCH=$(git log -1 --pretty=%ct)
-          docker buildx build --no-cache -t myapp:test --build-arg SOURCE_DATE_EPOCH=$EPOCH --output type=docker,dest=build1.tar .
+          docker buildx build --no-cache -t myapp:test --build-arg SOURCE_DATE_EPOCH=$EPOCH --output type=docker,dest=build1.tar backend/
 
       - name: Build Secondary Artifact
         run: |
           export EPOCH=$(git log -1 --pretty=%ct)
-          docker buildx build --no-cache -t myapp:test --build-arg SOURCE_DATE_EPOCH=$EPOCH --output type=docker,dest=build2.tar .
+          docker buildx build --no-cache -t myapp:test --build-arg SOURCE_DATE_EPOCH=$EPOCH --output type=docker,dest=build2.tar backend/
 
       - name: Verify Bit-for-Bit Parity
         run: |
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Image
-        run: docker build -t test-app .
+        run: docker build -t test-app backend/
 
       - name: Gate on Image Bloat (Dive)
         run: |
