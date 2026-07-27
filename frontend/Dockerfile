@@ -21,9 +21,9 @@ RUN npm run build
 
 # =============================================================================
 # STAGE 2 — runtime
-# Nginx 1.29.0-alpine pinned by Multi-Arch Index SHA
+# Chainguard Distroless Nginx (Hardened, Zero CVE, No Shell, Non-Root)
 # =============================================================================
-FROM nginx:1.29.0-alpine@sha256:d67ea0d64d518b1bb04acde3b00f722ac3e9764b3209a9b0a98924ba35e4b779 AS runtime
+FROM cgr.dev/chainguard/nginx:latest AS runtime
 
 ARG GIT_SHA=unknown
 ARG VERSION=1.0.0
@@ -32,11 +32,12 @@ ARG MAINTAINER="bruce@bruceminanga.world"
 LABEL org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.authors="${MAINTAINER}" \
-      org.opencontainers.image.base.name="nginx:1.29.0-alpine"
+      org.opencontainers.image.base.name="cgr.dev/chainguard/nginx"
 
-# Copy compiled static assets from builder
+# Copy compiled static assets from builder to the default static directory
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+# Distroless Nginx runs as a non-root user, which listens on port 8080 by default
+EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["-g", "daemon off;"]
