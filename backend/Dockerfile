@@ -1,18 +1,15 @@
 # =============================================================================
 # GLOBAL ARGS
-# Declared BEFORE the first FROM so it can be dynamically overridden with:
-#   docker build --build-arg BASE=python:3.11-slim .
 # =============================================================================
-ARG BASE=python:3.12-slim@sha256:ac212230555ffb7ec17c214fb4cf036ced11b30b5b460994376b0725c7f6c151
+ARG BUILDER_BASE=python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+ARG RUNTIME_BASE=gcr.io/distroless/python3-debian12:nonroot@sha256:7d1042ce588ab97019fe95c24ffca7bc5a82ccdac572511d5e09bda4435c89c5
 
 # =============================================================================
 # STAGE 1 — builder
-# Install dependencies in isolation. The compiler, pip, and wheel never
-# reach the production image.
+# Complete build environment: compilers, pip, and shell utilities.
 # =============================================================================
-FROM ${BASE} AS builder
+FROM ${BUILDER_BASE} AS builder
 
-# BuildKit passes SOURCE_DATE_EPOCH for reproducible timestamps
 ARG SOURCE_DATE_EPOCH
 
 WORKDIR /app
@@ -20,62 +17,59 @@ WORKDIR /app
 ENV PYTHONHASHSEED=0 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/install/lib/python3.12/site-packages:/install/lib/python3.11/site-packages:/install/lib/python3.10/site-packages \
-    PATH=/install/bin:$PATH
+    PYTHONUNBUFFERED=1
 
-# Manifests first — this layer is cached until requirements change
+# Copy dependencies manifest
 COPY requirements.txt .
 
-# Install into an explicit prefix so we can surgically copy it to runtime.
+# Target installation directly into a directory we can easily mount in PYTHONPATH
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install -r requirements.txt
+    pip install --target=/install -r requirements.txt
 
-# Normalize file modification timestamps in /install to SOURCE_DATE_EPOCH
-RUN find /install -exec touch -h --date="@${SOURCE_DATE_EPOCH:-0}" {} +
+# Copy application source code into builder
+COPY . /app
 
+# Normalize file modification timestamps for reproducibility BEFORE copying to distroless
+# (since 'find' and 'touch' do not exist in the distroless runtime stage)
+RUN find /install /app -exec touch -h --date="@${SOURCE_DATE_EPOCH:-0}" {} +
 
 # =============================================================================
-# STAGE 2 — runtime
-# Clean slate. Only installed packages + source land here.
-# No pip. No compiler. No build tools.
+# STAGE 2 — runtime (Distroless)
+# Clean slate containing ONLY the Python runtime, dependencies, and app code.
 # =============================================================================
-FROM ${BASE} AS runtime
+FROM ${RUNTIME_BASE} AS runtime
 
 ARG GIT_SHA=unknown
 ARG VERSION=1.0.0
 ARG MAINTAINER="bruce@bruceminanga.world"
-ARG SOURCE_DATE_EPOCH
 
 LABEL org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.authors="${MAINTAINER}" \
-      org.opencontainers.image.base.name="python:3.12-slim"
+      org.opencontainers.image.base.name="gcr.io/distroless/python3-debian12:nonroot"
 
 WORKDIR /app
 
 ENV PYTHONHASHSEED=0 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/install/lib/python3.12/site-packages:/install/lib/python3.11/site-packages:/install/lib/python3.10/site-packages \
-    PATH=/install/bin:$PATH
+    PYTHONPATH=/app/site-packages
 
-# Pull only the installed packages from the builder stage
-COPY --from=builder /install /install
+# Distroless images come with a pre-configured non-root user 'nonroot' (UID/GID 65532)
+USER nonroot:nonroot
 
-# Non-root user — assigned deterministic UID (10001), cleaned backups, & normalized /etc timestamps
-RUN useradd --uid 10001 --no-create-home --shell /bin/false appuser && \
-    rm -f /etc/passwd- /etc/shadow- /etc/group- /etc/gshadow- /var/log/lastlog /var/log/faillog && \
-    find /etc /var/log -exec touch -h --date="@${SOURCE_DATE_EPOCH:-0}" {} + 2>/dev/null || true
+# Copy installed Python packages from builder to the site-packages directory
+COPY --chown=nonroot:nonroot --from=builder /install /app/site-packages
 
-# Source arrives last — changes here don't bust the dependency cache
-COPY --chown=appuser:appuser . .
-
-USER appuser
+# Copy application source code from builder
+COPY --chown=nonroot:nonroot --from=builder /app /app
 
 EXPOSE 8000
 
-CMD ["gunicorn", "myproject.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "3", \
-     "--timeout", "120"]
+# Exec-form ENTRYPOINT invoking Gunicorn via Python module (-m)
+# Exec-form is strictly required as there is no shell to expand string commands.
+ENTRYPOINT ["/usr/bin/python3", "-m", "gunicorn", \
+            "myproject.wsgi:application", \
+            "--bind", "0.0.0.0:8000", \
+            "--workers", "3", \
+            "--timeout", "120"]

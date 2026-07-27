@@ -1,39 +1,89 @@
-# Python
+# ==========================================
+# Version Control & CI/CD
+# ==========================================
+.git/
+.gitignore
+.github/
+.gitlab/
+
+# ==========================================
+# Docker Files
+# ==========================================
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# ==========================================
+# OS & Editor / IDE Files
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# Python Artifacts & Builds
+# ==========================================
 **/__pycache__/
 **/*.pyc
 **/*.pyo
 **/*.pyd
 **/.Python
 **/*.egg-info/
+build/
+dist/
+*.egg
 
-# Virtual environments
+# ==========================================
+# Python Testing, Coverage & Linters
+# ==========================================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+
+# ==========================================
+# Virtual Environments
+# ==========================================
 **/venv/
 **/.venv/
 **/env/
 
-# Django
-**/db.sqlite3
-**/staticfiles/
-**/mediafiles/
-
-# Environment files
+# ==========================================
+# Environment Files & Secrets
+# ==========================================
 .env
 .env.*
+*.pem
+*.key
 
-# Frontend (not needed in backend image)
+# ==========================================
+# Django & Local Data Artifacts
+# ==========================================
+*.sqlite3
+*.sqlite
+*.db
+staticfiles/
+mediafiles/
+media/
+
+# ==========================================
+# Logs, Archives & Temporary Files
+# ==========================================
+*.log
+logs/
+*.tar
+*.gz
+*.zip
+
+# ==========================================
+# Unnecessary Project Folders & Docs
+# ==========================================
 frontend/
 nginx/
-
-# Docker files (no need to copy these into the image)
-docker-compose.yml
-Dockerfile
-
-# Git
-.git/
-.gitignore
-
-# VS Code
-.vscode/
-
-*.tar
-img*.tar
+docs/
+*.md
