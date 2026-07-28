@@ -8,17 +8,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history so git commit timestamp is accurate
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Build Primary Artifact
         run: |
-          export EPOCH=$(git log -1 --pretty=%ct)
-          docker buildx build --no-cache -t myapp:test --build-arg SOURCE_DATE_EPOCH=$EPOCH --output type=docker,dest=build1.tar backend/
+          export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
+          docker buildx build --no-cache \
+            -t myapp:test \
+            --build-arg SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH \
+            --output type=docker,dest=build1.tar,rewrite-timestamp=true \
+            backend/
 
       - name: Build Secondary Artifact
         run: |
-          export EPOCH=$(git log -1 --pretty=%ct)
-          docker buildx build --no-cache -t myapp:test --build-arg SOURCE_DATE_EPOCH=$EPOCH --output type=docker,dest=build2.tar backend/
+          export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
+          docker buildx build --no-cache \
+            -t myapp:test \
+            --build-arg SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH \
+            --output type=docker,dest=build2.tar,rewrite-timestamp=true \
+            backend/
 
       - name: Verify Bit-for-Bit Parity
         run: |
