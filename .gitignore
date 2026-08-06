@@ -13,4 +13,43 @@ backend/.env.dev
 backend/.env.prod
 backend/.env
 
+# ==========================================
+# Terraform Core Ignored Files & Directories
+# ==========================================
+
+# Ignore local .terraform folders (plugins, cached modules) anywhere in the repo
+**/.terraform/
+
+# Ignore local Terraform state files (CRITICAL: State files contain sensitive data)
+*.tfstate
+*.tfstate.*
+
+# Ignore Terraform plan files (e.g., myplan.tfplan in Level-1/6)
+*.tfplan
+
+# Ignore Terraform variable files containing potential secrets
+*.tfvars
+*.tfvars.json
+
+# Ignore Terraform CLI override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI configuration and crash logs
+crash.log
+crash.*.log
+
+# ==========================================
+# Sensitive & Temporary Files (from your tree)
+# ==========================================
+
+# Passwords, keys, and server configs
+*password*.txt
+server_config.txt
+
+# Generated output text files (e.g., hello_world.txt)
+hello_world.txt
+
 
