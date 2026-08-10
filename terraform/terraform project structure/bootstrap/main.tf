@@ -25,7 +25,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "state_lifecycle" {
 
     # Add a filter with a target prefix
     filter {
-      prefix = "logs/" 
+      prefix = "logs/"
     }
 
     expiration {
