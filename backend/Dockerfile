@@ -37,6 +37,7 @@ RUN find /install /app -exec touch -h --date="@${SOURCE_DATE_EPOCH:-0}" {} +
 # STAGE 2 — runtime (Distroless)
 # Clean slate containing ONLY the Python runtime, dependencies, and app code.
 # =============================================================================
+
 FROM ${RUNTIME_BASE} AS runtime
 
 ARG GIT_SHA=unknown
@@ -55,21 +56,19 @@ ENV PYTHONHASHSEED=0 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/site-packages
 
-# Distroless images come with a pre-configured non-root user 'nonroot' (UID/GID 65532)
 USER nonroot:nonroot
 
-# Copy installed Python packages from builder to the site-packages directory
 COPY --chown=nonroot:nonroot --from=builder /install /app/site-packages
-
-# Copy application source code from builder
 COPY --chown=nonroot:nonroot --from=builder /app /app
 
 EXPOSE 8000
 
-# Exec-form ENTRYPOINT invoking Gunicorn via Python module (-m)
-# Exec-form is strictly required as there is no shell to expand string commands.
-ENTRYPOINT ["/usr/bin/python3", "-m", "gunicorn", \
-            "myproject.wsgi:application", \
-            "--bind", "0.0.0.0:8000", \
-            "--workers", "3", \
-            "--timeout", "120"]
+# Executable in ENTRYPOINT
+ENTRYPOINT ["/usr/bin/python3", "-m", "gunicorn"]
+
+# Overridable default arguments in CMD
+CMD ["myproject.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "3", \
+     "--timeout", "120", \
+     "--graceful-timeout", "30"]
