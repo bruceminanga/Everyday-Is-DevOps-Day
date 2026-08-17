@@ -6,24 +6,21 @@ FROM --platform=$BUILDPLATFORM node:22.14.0-alpine@sha256:9bef0ef1e268f60627da9b
 
 WORKDIR /app
 
-# Manifests first — cached until package.json / package-lock.json changes
+# Install dependencies with BuildKit cache mount
 COPY package*.json ./
-
-# BuildKit cache mount prevents layer bloat while keeping rebuilds fast
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefer-offline
 
-# copying files from your computer into the container image
+# Copy source code and build
 COPY . .
-
-# Compile application assets
+ENV NODE_ENV=production
 RUN npm run build
-
 
 # =============================================================================
 # STAGE 2 — Runtime
-# Chainguard Distroless Nginx (Hardened, Zero CVE, No Shell, Non-Root)
+# Chainguard Distroless Nginx (Hardened, Non-Root UID 65532)
 # =============================================================================
+# Pin by SHA256 or specific version tag for reproducibility
 FROM cgr.dev/chainguard/nginx:latest AS runtime
 
 ARG GIT_SHA=unknown
@@ -36,10 +33,15 @@ LABEL org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.authors="${MAINTAINER}" \
       org.opencontainers.image.base.name="cgr.dev/chainguard/nginx"
 
-# Copy compiled static output from builder to static web root
-COPY --from=builder /app/dist /usr/share/nginx/html
+# (Optional) Copy custom nginx configuration for SPA routing / security headers
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Chainguard Nginx runs as a non-root user listening on port 8080
+# Copy compiled static output with non-root ownership (UID 65532)
+COPY --chown=65532:65532 --from=builder /app/dist /usr/share/nginx/html
+
+# Chainguard Nginx listens on port 8080 by default
 EXPOSE 8080
 
-CMD ["-g", "daemon off;"]
+# Chainguard base image automatically provides the ENTRYPOINT and CMD:
+# Entrypoint: ["/usr/sbin/nginx"]
+# CMD: ["-c", "/etc/nginx/nginx.conf", "-e", "/dev/stderr", "-g", "daemon off;"]
