@@ -21,7 +21,7 @@ RUN npm run build
 # Chainguard Distroless Nginx (Hardened, Non-Root UID 65532)
 # =============================================================================
 # Pin by SHA256 or specific version tag for reproducibility
-FROM cgr.dev/chainguard/nginx:latest AS runtime
+FROM cgr.dev/chainguard/nginx@sha256:d826cd7cff4e5a8f9477e685696cbddb47c33df1b8dc22c7d581e16ff70e44aa AS runtime
 
 ARG GIT_SHA=unknown
 ARG VERSION=1.0.0

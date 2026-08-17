@@ -1,0 +1,80 @@
+# =============================================================================
+# GLOBAL ARGS
+# =============================================================================
+ARG BUILDER_BASE=python:3.11-slim
+ARG RUNTIME_BASE=gcr.io/distroless/python3-debian12:nonroot@sha256:7d1042ce588ab97019fe95c24ffca7bc5a82ccdac572511d5e09bda4435c89c5
+
+# =============================================================================
+# STAGE 1 — Builder
+# =============================================================================
+FROM ${BUILDER_BASE} AS builder
+
+ARG SOURCE_DATE_EPOCH
+
+WORKDIR /app
+
+ENV PYTHONHASHSEED=0 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1
+
+# Install binutils for the 'strip' command to reduce binary sizes
+RUN apt-get update && apt-get install -y --no-install-recommends binutils && rm -rf /var/lib/apt/lists/*
+
+# Copy dependencies manifest
+COPY requirements*.txt ./
+
+# Install dependencies into /install
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-compile --target=/install -r requirements.txt
+
+# Prune unneeded files: tests, docs, pycache, and strip debug symbols from .so binaries
+RUN find /install -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true && \
+    find /install -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
+    find /install -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /install -name "*.pyc" -delete && \
+    find /install -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true && \
+    find /install -name "*.so" -exec strip --strip-unneeded {} + 2>/dev/null || true
+
+# Copy application source code
+COPY . /app
+
+# Normalize file modification timestamps for reproducibility
+RUN find /install /app -exec touch -h --date="@${SOURCE_DATE_EPOCH:-0}" {} + 2>/dev/null || true
+
+# =============================================================================
+# STAGE 2 — Runtime (Google Distroless ~53 MB Base)
+# =============================================================================
+FROM ${RUNTIME_BASE} AS runtime
+
+ARG GIT_SHA=unknown
+ARG VERSION=1.0.0
+ARG MAINTAINER="bruce@bruceminanga.world"
+
+LABEL org.opencontainers.image.revision="${GIT_SHA}" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.authors="${MAINTAINER}" \
+      org.opencontainers.image.base.name="gcr.io/distroless/python3-debian12:nonroot"
+
+WORKDIR /app
+
+ENV PYTHONHASHSEED=0 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/site-packages
+
+# Distroless pre-configured non-root user
+USER nonroot:nonroot
+
+# Copy pruned dependencies and application source code
+COPY --chown=nonroot:nonroot --from=builder /install /app/site-packages
+COPY --chown=nonroot:nonroot --from=builder /app /app
+
+EXPOSE 8000
+
+# Exec-form ENTRYPOINT invoking Gunicorn via Python module (-m)
+ENTRYPOINT ["/usr/bin/python3", "-m", "gunicorn", \
+            "myproject.wsgi:application", \
+            "--bind", "0.0.0.0:8000", \
+            "--workers", "3", \
+            "--timeout", "120"]
