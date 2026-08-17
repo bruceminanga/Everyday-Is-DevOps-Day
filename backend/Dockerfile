@@ -1,12 +1,12 @@
 # =============================================================================
 # GLOBAL ARGS
 # =============================================================================
-ARG BUILDER_BASE=python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+# Matched to Python 3.11 to align with Debian 12 Distroless
+ARG BUILDER_BASE=python:3.11-slim@sha256:9c900dea9e8fb7e16277c179b555cc72d29a352dbc33cff48ad5a0412fd5bfc7
 ARG RUNTIME_BASE=gcr.io/distroless/python3-debian12:nonroot@sha256:7d1042ce588ab97019fe95c24ffca7bc5a82ccdac572511d5e09bda4435c89c5
 
 # =============================================================================
 # STAGE 1 — builder
-# Complete build environment: compilers, pip, and shell utilities.
 # =============================================================================
 FROM ${BUILDER_BASE} AS builder
 
@@ -19,25 +19,18 @@ ENV PYTHONHASHSEED=0 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1
 
-# Copy dependencies manifest
 COPY requirements.txt .
 
-# Target installation directly into a directory we can easily mount in PYTHONPATH
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --target=/install -r requirements.txt
 
-# Copy application source code into builder
 COPY . /app
 
-# Normalize file modification timestamps for reproducibility BEFORE copying to distroless
-# (since 'find' and 'touch' do not exist in the distroless runtime stage)
 RUN find /install /app -exec touch -h --date="@${SOURCE_DATE_EPOCH:-0}" {} +
 
 # =============================================================================
 # STAGE 2 — runtime (Distroless)
-# Clean slate containing ONLY the Python runtime, dependencies, and app code.
 # =============================================================================
-
 FROM ${RUNTIME_BASE} AS runtime
 
 ARG GIT_SHA=unknown
@@ -63,10 +56,8 @@ COPY --chown=nonroot:nonroot --from=builder /app /app
 
 EXPOSE 8000
 
-# Executable in ENTRYPOINT
 ENTRYPOINT ["/usr/bin/python3", "-m", "gunicorn"]
 
-# Overridable default arguments in CMD
 CMD ["myproject.wsgi:application", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "3", \

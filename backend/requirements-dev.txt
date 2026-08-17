@@ -4,3 +4,4 @@ pytest
 pytest-django
 black
 flake8
+psycopg2-binary>=2.9.9
