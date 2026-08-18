@@ -6,15 +6,18 @@ metadata:
 spec:
   limits:
   - type: Container
-    default:
-      cpu: "200m"
-      memory: "256Mi"
+    # 1. Defaults injected if a container omits them:
     defaultRequest:
-      cpu: "100m"
+      cpu: "50m"
+      memory: "64Mi"
+    default:
+      cpu: "150m"
       memory: "128Mi"
+
+    # 2. Hard guardrails for a single container:
     max:
-      cpu: "1000m"
-      memory: "1Gi"
+      cpu: "300m"        # No single container can take more than 300m CPU
+      memory: "256Mi"    # No single container can take more than 256Mi RAM
     min:
       cpu: "20m"
       memory: "32Mi"
