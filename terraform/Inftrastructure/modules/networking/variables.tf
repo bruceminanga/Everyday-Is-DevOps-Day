@@ -1,14 +1,14 @@
 variable "vpc_cidr" {
-  description = "The IP range for the VPC (e.g., 10.0.0.0/16)"
+  description = "CIDR block for the VPC"
   type        = string
 }
 
 variable "subnet_cidr" {
-  description = "The IP range for the public subnet (e.g., 10.0.1.0/24)"
+  description = "CIDR block for the public subnet"
   type        = string
 }
 
 variable "environment" {
-  description = "The environment name (e.g., dev, staging, prod)"
+  description = "Environment name (e.g. dev, prod)"
   type        = string
 }
