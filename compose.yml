@@ -30,7 +30,8 @@ services:
   backend:
     build:
       context: backend/
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
+    command: ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
       - "127.0.0.1:8000:8000"
     env_file:
@@ -54,9 +55,9 @@ services:
   frontend:
     build:
       context: frontend/
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:5173:5173"
     env_file:
       - frontend/.env.dev
     volumes:
@@ -66,6 +67,57 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    networks:
+      - public
+  # ==========================================
+  # DevOps Monitoring Stack (No Code Modified)
+  # ==========================================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    privileged: true
+    security_opt:
+      - label=disable               # <-- CRITICAL for Fedora / SELinux
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro  # <-- Required for modern cgroups v2
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - public
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - public
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:Z
+    depends_on:
+      - cadvisor
+      - node-exporter
+    networks:
+      - public
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
     networks:
       - public
 
