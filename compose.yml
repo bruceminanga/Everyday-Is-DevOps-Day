@@ -69,22 +69,24 @@ services:
         condition: service_healthy
     networks:
       - public
+
   # ==========================================
-  # DevOps Monitoring Stack (No Code Modified)
+  # DevOps Monitoring Stack (With Profiles)
   # ==========================================
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: cadvisor
+    profiles: ["monitoring"]
     privileged: true
     security_opt:
-      - label=disable               # <-- CRITICAL for Fedora / SELinux
+      - label=disable
     ports:
       - "8080:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro  # <-- Required for modern cgroups v2
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     networks:
@@ -93,6 +95,7 @@ services:
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter
+    profiles: ["monitoring"]
     ports:
       - "9100:9100"
     networks:
@@ -101,23 +104,21 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    profiles: ["monitoring"]
+    user: "root"
     ports:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:Z
-    depends_on:
-      - cadvisor
-      - node-exporter
     networks:
       - public
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    profiles: ["monitoring"]
     ports:
       - "3000:3000"
-    depends_on:
-      - prometheus
     networks:
       - public
 
