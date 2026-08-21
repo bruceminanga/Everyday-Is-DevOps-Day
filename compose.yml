@@ -1,11 +1,12 @@
 name: everyday-is-devops-day-local
+
 services:
   db:
     image: postgres:16-alpine
     env_file:
       - backend/.env.dev
     ports:
-      - "127.0.0.1:5432:5432"  # loopback only — not reachable from LAN
+      - "127.0.0.1:5432:5432" # loopback only — not reachable from LAN
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -17,40 +18,54 @@ services:
     networks:
       - internal
 
-  # migrate:
-  #   build: .
-  #   entrypoint: ["/usr/bin/python3", "manage.py"]
-  #   command: ["migrate"]
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   env_file:
-  #     - backend/.env.dev
-
   backend:
     build:
       context: backend/
       dockerfile: Dockerfile.dev
-    command: ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
+    command:
+      [
+        "opentelemetry-instrument",
+        "python3",
+        "manage.py",
+        "runserver",
+        "0.0.0.0:8000",
+      ]
+    environment:
+      - DJANGO_SETTINGS_MODULE=myproject.settings # ◄── THIS TELLS OTEL WHERE SETTINGS LIVE
+      - DEBUG=1 # Satisfies checks for '1'
+      - DJANGO_DEBUG=True # Satisfies checks for 'True'
+      - ALLOWED_HOSTS=* # Allows all hosts
+      - DJANGO_ALLOWED_HOSTS=*
+      - OTEL_SERVICE_NAME=django-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=none
     ports:
       - "127.0.0.1:8000:8000"
     env_file:
       - backend/.env.dev
     volumes:
-      - ./backend:/app          # bind mount for hot-reload — adjust /app to your WORKDIR
+      - ./backend:/app # bind mount for hot-reload
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/items')"]
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/items')",
+        ]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 20s
     networks:
-      - internal   # to reach db
-      - public      # to be reachable by frontend/host
+      - internal # to reach db
+      - public # to be reachable by frontend/host
 
   frontend:
     build:
@@ -61,8 +76,8 @@ services:
     env_file:
       - frontend/.env.dev
     volumes:
-      - ./frontend:/app          # bind mount for hot-reload
-      - /app/node_modules        # anonymous volume so host doesn't overwrite installed deps
+      - ./frontend:/app # bind mount for hot-reload
+      - /app/node_modules # anonymous volume so host doesn't overwrite installed deps
     restart: unless-stopped
     depends_on:
       backend:
@@ -70,9 +85,9 @@ services:
     networks:
       - public
 
-  # ==========================================
-  # DevOps Monitoring Stack (With Profiles)
-  # ==========================================
+  # ===================================================
+  # DevOps Observability Stack (Metrics + Traces)
+  # ===================================================
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: cadvisor
@@ -113,20 +128,36 @@ services:
     networks:
       - public
 
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    profiles: ["monitoring"]
+    volumes:
+      - ./tempo.yml:/etc/tempo.yml:Z
+    ports:
+      - "3200:3200" # Tempo web query
+      - "4318:4318" # OTLP HTTP receiver
+    networks:
+      - public
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     profiles: ["monitoring"]
     ports:
       - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana # Saves dashboards and data sources permanently
     networks:
       - public
 
 networks:
   internal:
-    internal: true   # db is unreachable from outside this network, no external egress either
+    internal: true # db is unreachable from outside this network
   public:
     driver: bridge
 
 volumes:
   postgres_data:
+  grafana_data:
