@@ -35,82 +35,82 @@ spec:
                 topologyKey: kubernetes.io/hostname
 
       containers:
-      - name: frontend
-        image: everyday-is-devops-day-frontend:sha-a123
-        imagePullPolicy: IfNotPresent
-        ports:
-        - name: http
-          containerPort: 8080
+        - name: frontend
+          image: everyday-is-devops-day-frontend:sha-a123
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
 
-        securityContext:
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          runAsUser: 10001
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
 
-        lifecycle:
-          preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 10"]
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
 
-        envFrom:
-        - configMapRef:
-            name: frontend-config
-        - secretRef:
-            name: frontend-secrets
+          envFrom:
+            - configMapRef:
+                name: frontend-config
+            - secretRef:
+                name: frontend-secrets
 
-        resources:
-          requests:
-            cpu: "100m"
-            memory: "128Mi"
-          limits:
-            cpu: "200m"
-            memory: "128Mi"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
 
-        startupProbe:
-          httpGet:
-            path: /
-            port: 8080
-          initialDelaySeconds: 2
-          periodSeconds: 3
-          failureThreshold: 10
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 10
 
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 8080
-          periodSeconds: 10
-          timeoutSeconds: 2
-          failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
 
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 8080
-          periodSeconds: 5
-          timeoutSeconds: 2
-          failureThreshold: 2
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
 
-        # Ephemeral mounts so NGINX can write temp/logs without crashing
-        volumeMounts:
-        - name: nginx-tmp
-          mountPath: /var/lib/nginx/tmp
-        - name: nginx-logs
-          mountPath: /var/lib/nginx/logs
-        - name: nginx-run
-          mountPath: /var/run
-        - name: tmp
-          mountPath: /tmp
+          # Ephemeral mounts so NGINX can write temp/logs without crashing
+          volumeMounts:
+            - name: nginx-tmp
+              mountPath: /var/lib/nginx/tmp
+            - name: nginx-logs
+              mountPath: /var/lib/nginx/logs
+            - name: nginx-run
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
 
       volumes:
-      - name: nginx-tmp
-        emptyDir: {}
-      - name: nginx-logs
-        emptyDir: {}
-      - name: nginx-run
-        emptyDir: {}
-      - name: tmp
-        emptyDir: {}
+        - name: nginx-tmp
+          emptyDir: {}
+        - name: nginx-logs
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
