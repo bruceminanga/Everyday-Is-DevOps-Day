@@ -15,30 +15,32 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [backend, frontend] # Runs pipeline for both folders
+        service: [backend, frontend] # Runs pipeline in parallel for both services
     permissions:
       contents: read
       packages: write
 
     steps:
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. Lint the specific service's Dockerfile
+      # Step 2: Lint Dockerfile (Ignores DL3006 for ARG base image false-positives)
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ${{ matrix.service }}/Dockerfile
           failure-threshold: warning
-          ignore: DL3006 # Ignores the ARG variable base-image false positive
+          ignore: DL3006
 
-      - name: Set up QEMU
+      # Step 3: Set up build tools
+      - name: Set up QEMU (for multi-arch builds)
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 2. Tag separate images (e.g., ghcr.io/user/repo-frontend and ghcr.io/user/repo-backend)
+      # Step 4: Extract tags & labels
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -48,6 +50,7 @@ jobs:
             type=sha,format=short
             type=semver,pattern={{version}}
 
+      # Step 5: Log into GitHub Container Registry
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -56,27 +59,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Build & Test locally
-      - name: Build and export to local daemon
+      # Step 6: Build locally for testing
+      - name: Build local image for testing
         uses: docker/build-push-action@v5
         with:
           context: ./${{ matrix.service }}
           file: ./${{ matrix.service }}/Dockerfile
-          load: true
+          load: true # Loads into runner's local Docker daemon
           tags: test-${{ matrix.service }}:latest
 
-      # 4. Service-Specific Smoke Test
+      # Step 7: Universal Container Health Test (No Nginx/Python specific code)
       - name: Test Docker Image
         run: |
-          if [ "${{ matrix.service }}" = "frontend" ]; then
-            echo "Testing frontend Nginx syntax and config..."
-            docker run --rm test-frontend:latest nginx -t
-          elif [ "${{ matrix.service }}" = "backend" ]; then
-            echo "Testing backend Python runtime and dependencies..."
-            docker run --rm --entrypoint /usr/bin/python3 test-backend:latest -c "import sys; print('Backend Python runtime is healthy!')"
+          echo "Starting test container for ${{ matrix.service }}..."
+          docker run -d --name test-app test-${{ matrix.service }}:latest
+
+          # Give the container 3 seconds to initialize
+          sleep 3
+
+          # Check if the container is still running or crashed on boot
+          if [ "$(docker inspect -f '{{.State.Running}}' test-app)" != "true" ]; then
+            echo "❌ Container failed to stay alive on startup!"
+            echo "=== Container Logs ==="
+            docker logs test-app
+            exit 1
           fi
 
-      # 5. Multi-Arch Push
+          echo "✅ Container started and is running cleanly!"
+          docker rm -f test-app
+
+      # Step 8: Multi-Arch Build and Push
       - name: Build and Push Multi-Arch Image
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
