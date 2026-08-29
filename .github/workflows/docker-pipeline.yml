@@ -3,84 +3,79 @@ name: Docker CI/CD Pipeline
 on:
   push:
     branches: ["main"]
-    # Triggers on tags like v1.0.0 for Semantic Versioning
     tags: ["v*.*.*"]
   pull_request:
     branches: ["main"]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   lint-build-test-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [backend, frontend] # Runs pipeline for both folders
     permissions:
       contents: read
-      packages: write # Needed to push to GitHub Container Registry
+      packages: write
 
     steps:
-      # Step 1: Get the code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # CHECKLIST: Automate Lint
+      # 1. Lint the specific service's Dockerfile
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: Dockerfile
+          dockerfile: ${{ matrix.service }}/Dockerfile
           failure-threshold: warning
 
-      # CHECKLIST: Build for Multi-Arch (amd64 / arm64) using docker buildx
-      - name: Set up QEMU (for multi-arch)
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # CHECKLIST: Tag with semver or git SHA (Never deploy :latest)
-      - name: Extract Docker metadata (Tags & Labels)
+      # 2. Tag separate images (e.g., ghcr.io/user/repo-frontend and ghcr.io/user/repo-backend)
+      - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.service }}
           tags: |
-            # Generates a tag like 'sha-a1b2c3d'
-            type=sha,format=short 
-            # Generates a tag like '1.0.0' when you push a git tag 'v1.0.0'
+            type=sha,format=short
             type=semver,pattern={{version}}
 
-      # Log into the registry (only if not a PR)
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} # Automatically provided by GitHub Actions
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # CHECKLIST: Automate Build -> Test
-      # (We build for a single arch first so we can load it locally to test it)
-      - name: Build and export to Docker local daemon
+      # 3. Build & Test locally
+      - name: Build and export to local daemon
         uses: docker/build-push-action@v5
         with:
-          context: .
-          load: true # Loads into local docker so we can test it
-          tags: test-image:latest
+          context: ./${{ matrix.service }}
+          file: ./${{ matrix.service }}/Dockerfile
+          load: true
+          tags: test-${{ matrix.service }}:latest
 
       - name: Test Docker Image
         run: |
-          # Replace this with your actual test command!
-          # Example: docker run --rm test-image:latest python manage.py test
-          docker run --rm test-image:latest echo "Container runs successfully!"
+          docker run --rm test-${{ matrix.service }}:latest echo "Container runs successfully!"
 
-      # CHECKLIST: Automate Push (Multi-Arch)
+      # 4. Multi-Arch Push
       - name: Build and Push Multi-Arch Image
-        if: github.event_name != 'pull_request' # Only push on merge to main or tags
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64 # Builds for both architectures!
+          context: ./${{ matrix.service }}
+          file: ./${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
