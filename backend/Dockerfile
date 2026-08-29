@@ -8,6 +8,7 @@ ARG RUNTIME_BASE=gcr.io/distroless/python3-debian12:nonroot@sha256:7d1042ce588ab
 # =============================================================================
 # STAGE 1 — builder
 # =============================================================================
+# hadolint ignore=DL3006
 FROM ${BUILDER_BASE} AS builder
 
 ARG SOURCE_DATE_EPOCH
@@ -31,6 +32,7 @@ RUN find /install /app -exec touch -h --date="@${SOURCE_DATE_EPOCH:-0}" {} +
 # =============================================================================
 # STAGE 2 — runtime (Distroless)
 # =============================================================================
+# hadolint ignore=DL3006
 FROM ${RUNTIME_BASE} AS runtime
 
 ARG GIT_SHA=unknown
