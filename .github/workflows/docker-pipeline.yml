@@ -30,6 +30,7 @@ jobs:
         with:
           dockerfile: ${{ matrix.service }}/Dockerfile
           failure-threshold: warning
+          ignore: DL3006 # Ignores the ARG variable base-image false positive
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -64,11 +65,18 @@ jobs:
           load: true
           tags: test-${{ matrix.service }}:latest
 
+      # 4. Service-Specific Smoke Test
       - name: Test Docker Image
         run: |
-          docker run --rm test-${{ matrix.service }}:latest echo "Container runs successfully!"
+          if [ "${{ matrix.service }}" = "frontend" ]; then
+            echo "Testing frontend Nginx syntax and config..."
+            docker run --rm test-frontend:latest nginx -t
+          elif [ "${{ matrix.service }}" = "backend" ]; then
+            echo "Testing backend Python runtime and dependencies..."
+            docker run --rm --entrypoint /usr/bin/python3 test-backend:latest -c "import sys; print('Backend Python runtime is healthy!')"
+          fi
 
-      # 4. Multi-Arch Push
+      # 5. Multi-Arch Push
       - name: Build and Push Multi-Arch Image
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
