@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [backend, frontend] # Runs pipeline in parallel for both services
+        service: [backend, frontend] # Runs in parallel for both services
     permissions:
       contents: read
       packages: write
@@ -25,7 +25,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Lint Dockerfile (Ignores DL3006 for ARG base image false-positives)
+      # Step 2: Lint Dockerfile (Ignores DL3006 false-positives for ARG base images)
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
@@ -59,16 +59,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 6: Build locally for testing
+      # Step 6: Build local image for testing (Saves build cache)
       - name: Build local image for testing
         uses: docker/build-push-action@v5
         with:
           context: ./${{ matrix.service }}
           file: ./${{ matrix.service }}/Dockerfile
-          load: true # Loads into runner's local Docker daemon
+          load: true
           tags: test-${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # Step 7: Universal Container Health Test (No Nginx/Python specific code)
+      # Step 7: Universal Container Health Test
       - name: Test Docker Image
         run: |
           echo "Starting test container for ${{ matrix.service }}..."
@@ -77,7 +79,7 @@ jobs:
           # Give the container 3 seconds to initialize
           sleep 3
 
-          # Check if the container is still running or crashed on boot
+          # Check if the container stayed alive
           if [ "$(docker inspect -f '{{.State.Running}}' test-app)" != "true" ]; then
             echo "❌ Container failed to stay alive on startup!"
             echo "=== Container Logs ==="
@@ -88,7 +90,7 @@ jobs:
           echo "✅ Container started and is running cleanly!"
           docker rm -f test-app
 
-      # Step 8: Multi-Arch Build and Push
+      # Step 8: Multi-Arch Build and Push (Reuses build cache from Step 6)
       - name: Build and Push Multi-Arch Image
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
@@ -99,3 +101,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
