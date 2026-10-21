@@ -28,5 +28,5 @@ If you want to deploy and use this setup yourself, follow these instructions.
 ### Deployment Steps
 1. Clone the repository:
    ```bash
-   git clone git@github.com:bruceminanga/my-app-for-learning-devops.git
-   cd my-app
+   git clone git@github.com:bruceminanga/Everyday-Is-DevOps-Day.git
+   cd Everyday-Is-DevOps-Day

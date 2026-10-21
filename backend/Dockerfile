@@ -1,7 +1,6 @@
 # =============================================================================
 # GLOBAL ARGS
 # =============================================================================
-# Matched to Python 3.11 to align with Debian 12 Distroless
 ARG BUILDER_BASE=python:3.11-slim@sha256:9c900dea9e8fb7e16277c179b555cc72d29a352dbc33cff48ad5a0412fd5bfc7
 ARG RUNTIME_BASE=gcr.io/distroless/python3-debian12:nonroot@sha256:7d1042ce588ab97019fe95c24ffca7bc5a82ccdac572511d5e09bda4435c89c5
 
@@ -11,21 +10,30 @@ ARG RUNTIME_BASE=gcr.io/distroless/python3-debian12:nonroot@sha256:7d1042ce588ab
 # hadolint ignore=DL3006
 FROM ${BUILDER_BASE} AS builder
 
+# Grab uv binary
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
 ARG SOURCE_DATE_EPOCH
 
 WORKDIR /app
 
+# FIX 1: Add PYTHONPATH=/install so python can see django & dependencies
 ENV PYTHONHASHSEED=0 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/install
 
 COPY requirements.txt .
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --target=/install -r requirements.txt
+# Mount uv cache and install directly into /install
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system --target=/install -r requirements.txt
 
+# Copy your application code
 COPY . /app
+
+# Pass dummy SECRET_KEY so collectstatic builds cleanly
+RUN SECRET_KEY=dummy python manage.py collectstatic --noinput
 
 RUN find /install /app -exec touch -h --date="@${SOURCE_DATE_EPOCH:-0}" {} +
 
